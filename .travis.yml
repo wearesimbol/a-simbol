@@ -1,0 +1,13 @@
+language: node_js
+node_js:
+  - "8"
+env:
+  - NODE_OPTIONS=--max_old_space_size=4096
+before_install:
+  - npm i -g npm
+install:
+  - npm install
+script: npm run build
+cache:
+  directories:
+    - "node_modules"
