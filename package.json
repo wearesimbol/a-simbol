@@ -2,7 +2,7 @@
   "name": "a-simbol",
   "version": "1.0.0",
   "description": "A-Frame component for Simbol",
-  "main": "build/index.js",
+  "main": "build/a-simbol.js",
   "scripts": {
     "build": "rollup -c"
   },
