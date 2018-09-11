@@ -7061,6 +7061,7 @@ class Loader {
 			gltfWorldLoader.load(this.meshToLoad, (data) => {
 				const loadedScene = data.scene || data.scenes[0];
 				loadedScene.animations = data.animations || [];
+				loadedScene.path = this.meshToLoad;
 				resolve(loadedScene);
 			}, undefined, reject);
 		});
@@ -94922,8 +94923,6 @@ AFRAME.registerComponent('simbol', {
 	init: function() {
 		// Simbol handles controls itself
 		window.addEventListener('load', () => {
-			console.log(document.querySelector('[camera]'));
-			console.log(document.querySelector('.a-grab-cursor'));
 			document.querySelector('[camera]').removeAttribute('wasd-controls');
 			document.querySelector('[camera]').removeAttribute('look-controls');
 			document.querySelector('.a-grab-cursor').classList.remove('a-grab-cursor');
@@ -94938,13 +94937,11 @@ AFRAME.registerComponent('simbol', {
 				render: false,
 				animate: false,
 				sceneToLoad: this.el.sceneEl.object3D,
-				// It needs to be the parent to be positioned properly
-				// As Simbol is looking for direct children of the scene
-				// & World-Local position issue
-				camera: this.el.sceneEl.camera.parent,
+				camera: this.el.sceneEl.camera,
 				renderer: this.el.sceneEl.renderer
 			};
 
+			window.lol = this;
 			this.config = config;
 			this.simbol = new Simbol(config);
 			this.simbol.init();

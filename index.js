@@ -1,5 +1,5 @@
 /* global AFRAME */
-import Simbol from 'simbol';
+import Simbol from '../simbol/build/simbol.nothree.js';
 
 // Changes single quotes to double quotes from the HTML
 function parseJSON(string) {
@@ -32,13 +32,11 @@ AFRAME.registerComponent('simbol', {
 				render: false,
 				animate: false,
 				sceneToLoad: this.el.sceneEl.object3D,
-				// It needs to be the parent to be positioned properly
-				// As Simbol is looking for direct children of the scene
-				// & World-Local position issue
-				camera: this.el.sceneEl.camera.parent,
+				camera: this.el.sceneEl.camera,
 				renderer: this.el.sceneEl.renderer
 			};
 
+			window.lol = this;
 			this.config = config;
 			this.simbol = new Simbol(config);
 			this.simbol.init();
