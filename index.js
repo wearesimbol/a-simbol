@@ -34,7 +34,7 @@ AFRAME.registerComponent('simbol', {
 				sceneToLoad: this.el.sceneEl.object3D,
 				// It needs to be the parent to be positioned properly
 				// As Simbol is looking for direct children of the scene
-				// * World-Local position issue
+				// & World-Local position issue
 				camera: this.el.sceneEl.camera.parent,
 				renderer: this.el.sceneEl.renderer
 			};

@@ -18,6 +18,11 @@ And then add the tag to your HTML:
 
 Check it out on glitch: https://glitch.com/edit/#!/a-simbol-example
 
+## Contributing
+
+Check out the [Contribution guide](https://github.com/wearesimbol/simbol/blob/master/CONTRIBUTING.md)! If you have any questions, join our [community](http://spectrum.chat/simbol)
+
+
 ## License
 
 This program is free software and is distributed under an [MIT License](https://github.com/wearesimbol/a-simbol/blob/master/LICENSE).

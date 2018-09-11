@@ -11,9 +11,9 @@ export default {
 	plugins: [
 		// Hack to not add three.js twice to the final bundle as A-Frame provides it
 		replace({
-			'three': ``,
-			include: 'node_modules/simbol/**',
-			delimiters: ['import * as THREE from \'', '\'']
+			'simbol': `import Simbol from './node_modules/simbol/build/simbol.nothree.js'`,
+			include: 'index.js',
+			delimiters: ['import Simbol from \'', '\'']
 		}),
 		replace({
 			[`readable-stream`]: `require('stream')`,

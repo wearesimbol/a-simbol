@@ -1,5 +1,9 @@
 'use strict';
 
+var global$1 = (typeof global !== "undefined" ? global :
+            typeof self !== "undefined" ? self :
+            typeof window !== "undefined" ? window : {});
+
 function unwrapExports (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
@@ -346,7 +350,7 @@ EventEmitter.EventEmitter = EventEmitter;
 }
 });
 
-var global$1 = (typeof global !== "undefined" ? global :
+var global$1$1 = (typeof global$1 !== "undefined" ? global$1 :
             typeof self !== "undefined" ? self :
             typeof window !== "undefined" ? window : {});
 
@@ -453,7 +457,7 @@ var webvrPolyfill = createCommonjsModule(function (module, exports) {
 (function (global, factory) {
 	module.exports = factory();
 }(this, (function () {
-var commonjsGlobal$$1 = typeof window !== 'undefined' ? window : typeof global$1 !== 'undefined' ? global$1 : typeof self !== 'undefined' ? self : {};
+var commonjsGlobal$$1 = typeof window !== 'undefined' ? window : typeof global$1$1 !== 'undefined' ? global$1$1 : typeof self !== 'undefined' ? self : {};
 
 
 
@@ -7055,8 +7059,8 @@ class Loader {
 			const gltfWorldLoader = new GLTFLoader();
 			gltfWorldLoader.setCrossOrigin('');
 			gltfWorldLoader.load(this.meshToLoad, (data) => {
-				const loadedScene = data.scene;
-				loadedScene.animations = data.animations;
+				const loadedScene = data.scene || data.scenes[0];
+				loadedScene.animations = data.animations || [];
 				resolve(loadedScene);
 			}, undefined, reject);
 		});
@@ -7272,7 +7276,7 @@ class Physics {
 	}
 }
 
-const VERTICAL_VECTOR = new THREE.Vector3(0, -1, 0);
+const VERTICAL_VECTOR = new THREE.Vector3(0, 1, 0);
 
 const HAND_GESTURES = {
 	open: 'Open',
@@ -7332,7 +7336,6 @@ class PoseController extends eventemitter3 {
 	constructor(gamepad = {}, vpMesh) {
 		super();
 
-
 		this.id = `${gamepad.id} (${gamepad.hand})`;
 		this.hand = gamepad.hand;
 		this.gamepadId = gamepad.id;
@@ -7365,10 +7368,6 @@ class PoseController extends eventemitter3 {
 			this.handMesh = this.vpMesh.getObjectByName('VirtualPersonaHandLeft');
 		} else if (this.hand === 'right') {
 			this.handMesh = this.vpMesh.getObjectByName('VirtualPersonaHandRight');
-		}
-
-		if (this.handMesh) {
-			this.vpMesh.parent.add(this.handMesh);
 		}
 
 		this.renameAnimations();
@@ -7462,6 +7461,7 @@ class PoseController extends eventemitter3 {
 		}
 
 		const clipAction = this._animationMixer.clipAction(gestureName);
+
 		if (!clipAction) {
 			return;
 		}
@@ -7487,16 +7487,21 @@ class PoseController extends eventemitter3 {
 				gesture: gestureName,
 				previousGesture: false
 			});
+
+			this.currentGesture = gestureName;
+
 			return;
 		}
 
 		const previousAction = this._animationMixer.clipAction(this.currentGesture);
+
 		if (!previousAction) {
 			return;
 		}
 		previousAction.weight = 0.15;
 		previousAction.play();
 		clipAction.play();
+		previousAction.crossFadeTo(clipAction, 0.15, true);
 
 		this.emit('gesturechange', {
 			gesture: gestureName,
@@ -7505,47 +7510,56 @@ class PoseController extends eventemitter3 {
 
 		this.currentGesture = gestureName;
 	}
+}
 
-	/**
-	 * Gets latest information from gamepad and updates the model based on it
-	 * It applies an arm model if it's a 3DOF controller
-	 * It applies the correct hand gesture
-	 * It also emits events for different button states that have the structure:
-	 * "button""pressed/unpressed/touched/untouched" e.g. "triggerpressed"
-	 *
-	 * @param {number} delta - Delta from the animation frame
-	 * @param {THREE.Camera} camera - Scene camera
-	 * @param {number} userHeight - The user's set height
-	 *
-	 * @example
-	 * // This is executed in an animation loop
-	 * gamepadController.update();
-	 *
-	 * @return {undefined}
-	 *
-	 * @emits PoseController#controllerdisconnected
-	 * @emits PoseController#thumbpadpressed
-	 * @emits PoseController#thumbpadunpressed
-	 * @emits PoseController#thumbpadtouched
-	 * @emits PoseController#thumbpaduntouched
-	 * @emits PoseController#triggerpressed
-	 * @emits PoseController#triggerunpressed
-	 * @emits PoseController#triggertouched
-	 * @emits PoseController#triggeruntouched
-	 * @emits PoseController#grippressed
-	 * @emits PoseController#gripunpressed
-	 * @emits PoseController#griptouched
-	 * @emits PoseController#gripuntouched
-	 * @emits PoseController#apressed
-	 * @emits PoseController#aunpressed
-	 * @emits PoseController#atouched
-	 * @emits PoseController#auntouched
-	 * @emits PoseController#bpressed
-	 * @emits PoseController#bunpressed
-	 * @emits PoseController#btouched
-	 * @emits PoseController#buntouched
-	 */
-	update(delta, camera, userHeight) {
+/**
+ * Gets latest information from gamepad and updates the model based on it
+ * It applies an arm model if it's a 3DOF controller
+ * It applies the correct hand gesture
+ * It also emits events for different button states that have the structure:
+ * "button""pressed/unpressed/touched/untouched" e.g. "triggerpressed"
+ *
+ * @param {number} delta - Delta from the animation frame
+ * @param {THREE.Camera} camera - Scene camera
+ * @param {number} userHeight - The user's set height
+ *
+ * @example
+ * // This is executed in an animation loop
+ * gamepadController.update();
+ *
+ * @return {undefined}
+ *
+ * @emits PoseController#controllerdisconnected
+ * @emits PoseController#thumbpadpressed
+ * @emits PoseController#thumbpadunpressed
+ * @emits PoseController#thumbpadtouched
+ * @emits PoseController#thumbpaduntouched
+ * @emits PoseController#triggerpressed
+ * @emits PoseController#triggerunpressed
+ * @emits PoseController#triggertouched
+ * @emits PoseController#triggeruntouched
+ * @emits PoseController#grippressed
+ * @emits PoseController#gripunpressed
+ * @emits PoseController#griptouched
+ * @emits PoseController#gripuntouched
+ * @emits PoseController#apressed
+ * @emits PoseController#aunpressed
+ * @emits PoseController#atouched
+ * @emits PoseController#auntouched
+ * @emits PoseController#bpressed
+ * @emits PoseController#bunpressed
+ * @emits PoseController#btouched
+ * @emits PoseController#buntouched
+ */
+PoseController.prototype.update = (function() {
+
+	const cameraPosition = new THREE.Vector3();
+	const cameraQuaternion = new THREE.Quaternion();
+	const cameraRotation = new THREE.Euler();
+	const worldToLocal = new THREE.Matrix4();
+	const poseMatrix = new THREE.Matrix4();
+
+	return function update(delta, camera, userHeight) {
 		const gamepad = Controllers.getGamepad(this.id);
 
 		if (!gamepad) {
@@ -7587,6 +7601,7 @@ class PoseController extends eventemitter3 {
 		}
 
 		const gesture = this.determineGesture();
+
 		this.setGesture(gesture);
 
 		this._animationMixer.update(delta);
@@ -7599,46 +7614,58 @@ class PoseController extends eventemitter3 {
 			this.position.fromArray(gamepad.pose.position);
 		}
 
-		if (!gamepad.pose.position) {
-			// Arm model from https://github.com/ryanbetts/aframe-daydream-controller-component
-			this.position.copy(camera.position);
+		camera.matrixWorld.decompose(cameraPosition, cameraQuaternion, {});
+		cameraRotation.setFromQuaternion(cameraQuaternion, 'YXZ');
 
-			if (!this.offset) {
-				this.offset = new THREE.Vector3();
-			}
-			// Set offset for degenerate "arm model" to elbow
-			this.offset.set(
-				this.hand === 'left' ? -eyesToElbow.x : eyesToElbow.x, // Hand is to your left, or right
-				eyesToElbow.y, // Lower than your eyes
-				eyesToElbow.z); // Slightly out in front
-			// Scale offset by user height
-			this.offset.multiplyScalar(userHeight);
-			// Apply camera Y rotation (not X or Z, so you can look down at your hand)
-			this.offset.applyAxisAngle(VERTICAL_VECTOR, camera.rotation.y);
-			// Apply rotated offset to camera position
-			this.position.add(this.offset);
+		if (this.handMesh) {
+			worldToLocal.getInverse(this.handMesh.parent.matrixWorld);
 
-			// Set offset for degenerate "arm model" forearm
-			this.offset.set(forearm.x, forearm.y, forearm.z); // Forearm sticking out from elbow
-			// Scale offset by user height
-			this.offset.multiplyScalar(userHeight);
-			// Apply controller X and Y rotation (tilting up/down/left/right is usually moving the arm)
-			this.euler.setFromQuaternion(this.quaternion);
-			this.euler.set(this.euler.x, this.euler.y, 0);
-			this.offset.applyEuler(this.euler);
-			// Apply rotated offset to camera position
-			this.position.add(this.offset);
-			if (this.handMesh) {
-				this.handMesh.quaternion.copy(this.quaternion);
-				this.handMesh.position.copy(this.position);
+			if (!gamepad.pose.position) {
+				// Arm model from https://github.com/ryanbetts/aframe-daydream-controller-component
+				this.position.copy(cameraPosition);
+
+				if (!this.offset) {
+					this.offset = new THREE.Vector3();
+				}
+				// Set offset for degenerate "arm model" to elbow
+				this.offset.set(
+					this.hand === 'left' ? -eyesToElbow.x : eyesToElbow.x, // Hand is to your left, or right
+					eyesToElbow.y, // Lower than your eyes
+					eyesToElbow.z); // Slightly out in front
+				// Scale offset by user height
+				this.offset.multiplyScalar(userHeight);
+				// Apply camera Y rotation (not X or Z, so you can look down at your hand)
+				this.offset.applyAxisAngle(VERTICAL_VECTOR, cameraRotation.y);
+				// Apply rotated offset to camera position
+				this.position.add(this.offset);
+
+				// Set offset for degenerate "arm model" forearm
+				this.offset.set(forearm.x, forearm.y, forearm.z); // Forearm sticking out from elbow
+				// Scale offset by user height
+				this.offset.multiplyScalar(userHeight);
+				// Apply controller X and Y rotation (tilting up/down/left/right is usually moving the arm)
+				this.euler.setFromQuaternion(this.quaternion);
+				this.euler.set(this.euler.x, this.euler.y, 0);
+				this.offset.applyEuler(this.euler);
+				// Apply rotated offset to camera position
+				this.position.add(this.offset);
 			}
-		} else if (this.handMesh) {
-			this.handMesh.quaternion.copy(this.quaternion);
-			this.handMesh.position.copy(camera.position);
-			this.handMesh.position.add(this.position);
+
+			poseMatrix.makeRotationFromQuaternion(this.quaternion);
+			poseMatrix.setPosition(this.position);
+			poseMatrix.multiplyMatrices(worldToLocal, poseMatrix);
+			poseMatrix.decompose(this.handMesh.position, this.handMesh.quaternion, {});
+			// Makes sure the hand is pointing in the same direction as how one holds the controller
+			this.handMesh.rotateX(-(Math.PI / 2));
+			this.handMesh.rotateY(-(Math.PI / 2));
+			this.handMesh.updateMatrixWorld();
+
+			if (gamepad.pose.position) {
+				this.handMesh.position.add(cameraPosition);
+			}
 		}
-	}
-}
+	};
+}());
 
 const ControllerButtons$1 = {
 	'Trigger': 0
@@ -9182,21 +9209,26 @@ class Teleportation {
 
 		return hitCylinder;
 	}
+}
 
-	/**
-	 * Updates the ray, when active, depending on the world position by displaying it
-	 * and checking if it hits an object
-	 *
-	 * @param {PoseController|GamepadController|THREE.Object3D} controller - Controller that will dispatch the ray curve
-	 * @param {THREE.Scene} scene - Scene that the ray curve can collision with
-	 *
-	 * @example
-	 * teleporation.updateRayCurve();
-	 *
-	 * @return {undefined}
-	 */
-	updateRayCurve(controller, scene) {
-		if (!controller || !(controller instanceof THREE.Object3D) && !(controller.model instanceof THREE.Object3D)) {
+/**
+ * Updates the ray, when active, depending on the world position by displaying it
+ * and checking if it hits an object
+ *
+ * @param {PoseController|GamepadController|THREE.Object3D} controller - Controller that will dispatch the ray curve
+ * @param {THREE.Scene} scene - Scene that the ray curve can collision with
+ *
+ * @example
+ * teleporation.updateRayCurve();
+ *
+ * @return {undefined}
+ */
+Teleportation.prototype.updateRayCurve = (function() {
+	const position = new THREE.Vector3();
+	const quaternion = new THREE.Quaternion();
+
+	return function(controller, scene) {
+		if (!controller || !(controller instanceof THREE.Object3D) && !(controller.handMesh instanceof THREE.Object3D)) {
 			this.setRayCurveState(false);
 			return;
 		}
@@ -9212,11 +9244,14 @@ class Teleportation {
 		this.rayCurve.visible = true;
 		this.rayCurve.material.color.set(this.missColor);
 
-		controller = controller.model || controller;
-		const quaternion = controller.getWorldQuaternion(new THREE.Quaternion());
+		const object = controller.handMesh || controller;
+
+		object.matrixWorld.decompose(position, quaternion, {});
+		if (controller.handMesh) {
+			this._shootAxis.set(0, 1, 0);
+		}
 		const direction = this._shootAxis.clone().applyQuaternion(quaternion).normalize();
 		this._setDirection(direction);
-		const position = controller.position.clone();
 		const velocity = direction.clone().multiplyScalar(this.velocity);
 
 		const lastSegment = position.clone();
@@ -9258,8 +9293,8 @@ class Teleportation {
 		if (!this.hitPoint) {
 			clearTimeout(this.activateTeleport.id);
 		}
-	}
-}
+	};
+}());
 
 /** Class for all general locomotion purposes */
 class Locomotion {
@@ -9688,7 +9723,6 @@ const VRControls = function ( object, onError ) {
 			}
 
 			object.position.multiplyScalar( scope.scale );
-
 		}
 
 	};
@@ -27628,7 +27662,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! bignumber.js v2.0.7 https://github.com/Mik
                   (Math.random() * 0x800000 | 0); };
 
             return function (dp) {
-                var a, b, e, k, v,
+                var e, k, v,
                     i = 0,
                     c = [],
                     rand = new BigNumber(ONE);
@@ -27639,65 +27673,7 @@ var __WEBPACK_AMD_DEFINE_RESULT__;/*! bignumber.js v2.0.7 https://github.com/Mik
                 if (CRYPTO) {
 
                     // Browsers supporting crypto.getRandomValues.
-                    if ( crypto && crypto.getRandomValues ) {
-
-                        a = crypto.getRandomValues( new Uint32Array( k *= 2 ) );
-
-                        for ( ; i < k; ) {
-
-                            // 53 bits:
-                            // ((Math.pow(2, 32) - 1) * Math.pow(2, 21)).toString(2)
-                            // 11111 11111111 11111111 11111111 11100000 00000000 00000000
-                            // ((Math.pow(2, 32) - 1) >>> 11).toString(2)
-                            //                                     11111 11111111 11111111
-                            // 0x20000 is 2^21.
-                            v = a[i] * 0x20000 + (a[i + 1] >>> 11);
-
-                            // Rejection sampling:
-                            // 0 <= v < 9007199254740992
-                            // Probability that v >= 9e15, is
-                            // 7199254740992 / 9007199254740992 ~= 0.0008, i.e. 1 in 1251
-                            if ( v >= 9e15 ) {
-                                b = crypto.getRandomValues( new Uint32Array(2) );
-                                a[i] = b[0];
-                                a[i + 1] = b[1];
-                            } else {
-
-                                // 0 <= v <= 8999999999999999
-                                // 0 <= (v % 1e14) <= 99999999999999
-                                c.push( v % 1e14 );
-                                i += 2;
-                            }
-                        }
-                        i = k / 2;
-
-                    // Node.js supporting crypto.randomBytes.
-                    } else if ( crypto && crypto.randomBytes ) {
-
-                        // buffer
-                        a = crypto.randomBytes( k *= 7 );
-
-                        for ( ; i < k; ) {
-
-                            // 0x1000000000000 is 2^48, 0x10000000000 is 2^40
-                            // 0x100000000 is 2^32, 0x1000000 is 2^24
-                            // 11111 11111111 11111111 11111111 11111111 11111111 11111111
-                            // 0 <= v < 9007199254740992
-                            v = ( ( a[i] & 31 ) * 0x1000000000000 ) + ( a[i + 1] * 0x10000000000 ) +
-                                  ( a[i + 2] * 0x100000000 ) + ( a[i + 3] * 0x1000000 ) +
-                                  ( a[i + 4] << 16 ) + ( a[i + 5] << 8 ) + a[i + 6];
-
-                            if ( v >= 9e15 ) {
-                                crypto.randomBytes(7).copy( a, i );
-                            } else {
-
-                                // 0 <= (v % 1e14) <= 99999999999999
-                                c.push( v % 1e14 );
-                                i += 7;
-                            }
-                        }
-                        i = k / 7;
-                    } else if (ERRORS) {
+                    if (ERRORS) {
                         raise( 14, 'crypto unavailable', crypto );
                     }
                 }
@@ -84621,7 +84597,7 @@ module.exports = transfer;
 
 var uport = unwrapExports(uportConnect);
 
-const ANONYMOUS_AVATAR_PATH = 'https://simbol.io/assets/models/AnonymousVP.gltf';
+const ANONYMOUS_AVATAR_PATH = 'https://simbol.io/assets/models/AnonymousVP.glb';
 
 class Identity extends eventemitter3 {
 
@@ -84659,7 +84635,7 @@ class Identity extends eventemitter3 {
 
 		this.uPort = new uport.Connect('Simbol', {
 			clientId: '2on1AwSMW48Asek7N5fT9aGf3voWqMkEAXJ',
-			network: 'rinkeby',
+			network: 'rinkeby', // Change to main net
 			signer: uport.SimpleSigner('12856cfa7d87eca683cbccf3617c82c615b8cac4347db20b1874884c2bc6453d') // eslint-disable-line new-cap
 		});
 
@@ -84773,7 +84749,15 @@ class Identity extends eventemitter3 {
 	 * @returns {undefined}
 	 */
 	setUPortData(credentials, save) {
-		this.uPortData = credentials;
+		this.uPortData = {
+			address: credentials.address,
+			did: credentials.did,
+			publicEncKey: credentials.publicEncKey,
+			pushToken: credentials.pushToken,
+			SimbolConfig: credentials.SimbolConfig
+		};
+		this.uPort.pushToken = credentials.pushToken;
+		this.uPort.publicEncKey = credentials.publicEncKey;
 		if (credentials.SimbolConfig) {
 			const config = JSON.parse(credentials.SimbolConfig);
 			this.avatarPath = config.avatar3D ||
@@ -85013,8 +84997,8 @@ var INSPECT_MAX_BYTES = 50;
  * We detect these buggy browsers and set `Buffer.TYPED_ARRAY_SUPPORT` to `false` so they
  * get the Object implementation, which is slower but behaves correctly.
  */
-Buffer.TYPED_ARRAY_SUPPORT = global$1.TYPED_ARRAY_SUPPORT !== undefined
-  ? global$1.TYPED_ARRAY_SUPPORT
+Buffer.TYPED_ARRAY_SUPPORT = global$1$1.TYPED_ARRAY_SUPPORT !== undefined
+  ? global$1$1.TYPED_ARRAY_SUPPORT
   : true;
 
 /*
@@ -86778,10 +86762,10 @@ function defaultClearTimeout () {
 }
 var cachedSetTimeout = defaultSetTimout;
 var cachedClearTimeout = defaultClearTimeout;
-if (typeof global$1.setTimeout === 'function') {
+if (typeof global$1$1.setTimeout === 'function') {
     cachedSetTimeout = setTimeout;
 }
-if (typeof global$1.clearTimeout === 'function') {
+if (typeof global$1$1.clearTimeout === 'function') {
     cachedClearTimeout = clearTimeout;
 }
 
@@ -86930,7 +86914,7 @@ function chdir (dir) {
 }function umask() { return 0; }
 
 // from https://github.com/kumavis/browser-process-hrtime/blob/master/index.js
-var performance = global$1.performance || {};
+var performance = global$1$1.performance || {};
 var performanceNow =
   performance.now        ||
   performance.mozNow     ||
@@ -87694,11 +87678,11 @@ var safeBuffer_1 = safeBuffer.Buffer;
 var browser$2 = createCommonjsModule(function (module) {
 
 function oldBrowser () {
-  throw new Error('Secure random number generation is not supported by this browser.\nUse Chrome, Firefox or Internet Explorer 11')
+  throw new Error('secure random number generation not supported by this browser\nuse chrome, FireFox or Internet Explorer 11')
 }
 
 var Buffer = safeBuffer.Buffer;
-var crypto = global$1.crypto || global$1.msCrypto;
+var crypto = global$1$1.crypto || global$1$1.msCrypto;
 
 if (crypto && crypto.getRandomValues) {
   module.exports = randomBytes;
@@ -87710,7 +87694,7 @@ function randomBytes (size, cb) {
   // phantomjs needs to throw
   if (size > 65536) throw new Error('requested too many random bytes')
   // in case browserify  isn't using the Uint8Array version
-  var rawBytes = new global$1.Uint8Array(size);
+  var rawBytes = new global$1$1.Uint8Array(size);
 
   // This will not work in older browsers.
   // See https://developer.mozilla.org/en-US/docs/Web/API/window.crypto.getRandomValues
@@ -88266,7 +88250,7 @@ function format(f) {
 // If --no-deprecation is set, then it is a no-op.
 function deprecate(fn, msg) {
   // Allow for deprecating things in the process of starting up.
-  if (isUndefined(global$1.process)) {
+  if (isUndefined(global$1$1.process)) {
     return function() {
       return deprecate(fn, msg).apply(this, arguments);
     };
@@ -88290,7 +88274,7 @@ var debugs = {};
 var debugEnviron;
 function debuglog(set) {
   if (isUndefined(debugEnviron))
-    debugEnviron = process.env.NODE_DEBUG || '';
+    debugEnviron = '';
   set = set.toUpperCase();
   if (!debugs[set]) {
     if (new RegExp('\\b' + set + '\\b', 'i').test(debugEnviron)) {
@@ -91536,9 +91520,15 @@ const defaultConfig = {
 	socketURL: 'ws://127.0.0.1',
 	socketPort: 8091,
 	channelName: 'default',
+	iceServers: [
+		{urls: 'stun:global.stun.twilio.com:3478?transport=udp'},
+		{urls:'stun:stun.l.google.com:19302'},
+		{urls:'stun:stun1.l.google.com:19302'}
+	],
 	peer: {
 		trickle: true,
-		objectMode: false
+		objectMode: false,
+		config: {}
 	}
 };
 
@@ -91581,6 +91571,7 @@ class MultiVP extends eventemitter3 {
 
 		this.config = Object.assign({}, defaultConfig, config);
 		this.vp = vp;
+		this.audioListener = new THREE.AudioListener();
 
 		this.getStream()
 			.then((stream) => {
@@ -91647,8 +91638,15 @@ class MultiVP extends eventemitter3 {
 	animate() {
 		for (const peerId of Object.keys(this.meshes)) {
 			const peerMesh = this.meshes[peerId];
+			for (let i = 0; i < 3; i++) {
+				if (typeof peerMesh.position[i] !== 'number') {
+					peerMesh.position[i] = 0;
+				}
+			}
 			peerMesh.mesh.position.set(...peerMesh.position);
-			peerMesh.mesh.rotation.y = peerMesh.rotation;
+			if (typeof peerMesh.rotation === 'number') {
+				peerMesh.mesh.rotation.y = peerMesh.rotation;
+			}
 		}
 	}
 
@@ -91733,6 +91731,7 @@ class MultiVP extends eventemitter3 {
 		this.config.peer.initiator = initiator;
 		this.config.peer.channelName = this.config.channelName;
 		this.config.peer.streams = [stream];
+		this.config.peer.config.iceServers = this.config.iceServers;
 
 		const peer = new simplePeer(this.config.peer);
 
@@ -91758,11 +91757,14 @@ class MultiVP extends eventemitter3 {
 	 * @returns {undefined}
 	 */
 	_peerStream(stream) {
-		this.audioEl = document.createElement('audio');
-		this.audioEl.autoplay = true;
-		this.audioEl.srcObject = stream;
-		document.body.appendChild(this.audioEl);
-		this.audioEl.play();
+		this.audioHelper = new THREE.PositionalAudio(this.multiVP.audioListener);
+		const sourceNode = this.audioHelper.context.createMediaStreamSource(stream);
+		this.audioHelper.setNodeSource(sourceNode);
+
+		// Workaround for Chrome to output audio
+		let audioObj = document.createElement('audio');
+		audioObj.srcObject = stream;
+		audioObj = null;
 	}
 
 	/**
@@ -91833,6 +91835,8 @@ class MultiVP extends eventemitter3 {
 		if (data.type === 'connected') {
 			this.multiVP._loadAvatar(data.avatar, this.id)
 				.then((mesh) => {
+					// Adds the positional audio object to position it with the mesh
+					mesh.add(this.audioHelper);
 					/**
 					 * MultiVP add event that provides a mesh to be added to the scene
 					 *
@@ -91868,15 +91872,15 @@ class MultiVP extends eventemitter3 {
 	_peerClose() {
 		console.log(`peer ${this.id} closing`);
 		delete this.multiVP.remotePeers[this.id];
-		document.body.removeChild(this.audioEl);
 		if (this.multiVP.meshes[this.id]) {
-			const mesh = this.multiVP.meshes[this.id].mesh;/**
-			* MultiVP remove event that provides a mesh to be removed
-			* from the scene
-			*
-			* @event MultiVP#remove
-			* @type {object}
-			* @property mesh - Mesh to be removed from the scene
+			const mesh = this.multiVP.meshes[this.id].mesh;
+			/**
+			 * MultiVP remove event that provides a mesh to be removed
+			 * from the scene
+			 *
+			 * @event MultiVP#remove
+			 * @type {object}
+			 * @property mesh - Mesh to be removed from the scene
 			*/
 			this.multiVP.emit('remove', {mesh});
 			delete this.multiVP.meshes[this.id];
@@ -91985,6 +91989,9 @@ class MultiVP extends eventemitter3 {
 }
 
 const VERTICAL_VECTOR$1 = new THREE.Vector3(0, -1, 0);
+const defaultConfig$1 = {
+	signIn: true
+};
 
 /** Class for a VirtualPersona */
 class VirtualPersona extends eventemitter3 {
@@ -92030,6 +92037,7 @@ class VirtualPersona extends eventemitter3 {
 	 *
 	 * @param {object} config - Configuration parameters for different elements
 	 * @param {boolean} config.signIn - Whether Simbol should attempt to sign the person in on #init
+	 * @param {object|boolean} config.multiVP - MultiVP options. Can be set to false if you configure your own multiuser experience
 	 *
 	 * @returns {undefined}
 	 *
@@ -92041,6 +92049,7 @@ class VirtualPersona extends eventemitter3 {
 	constructor(config = { signIn: true }) {
 		super();
 
+		config = Object.assign({}, defaultConfig$1, config);
 		this.config = config;
 		this._feetPosition = new THREE.Vector3();
 
@@ -92068,46 +92077,48 @@ class VirtualPersona extends eventemitter3 {
 			this.emit('error', event);
 		});
 
-		this.multiVP = new MultiVP(config.multiVP, this);
-		this.multiVP.on('add', (event) => {
-			/**
-			 * VirtualPersona add event that provides a mesh
-			 * to be added to the scene. Sometimes forwarded
-			 * by other subcomponents
-			 *
-			 * @event VirtualPersona#add
-			 * @type {object}
-			 * @property mesh - Mesh to add to the scene
-			 */
-			this.emit('add', event);
-		});
-		this.multiVP.on('remove', (event) => {
-			/**
-			 * VirtualPersona remove event that provides a mesh
-			 * to be removed to the scene. Sometimes forwarded
-			 * by other subcomponents
-			 *
-			 * @event VirtualPersona#remove
-			 * @type {object}
-			 * @property mesh - Mesh to be removed from the scene
-			 */
-			this.emit('remove', event);
-		});
-		this.multiVP.on('addanimatefunctions', (event) => {
-			/**
-			 * VirtualPersona addanimatefunctions event that provides a function
-			 * to be added to the animation loop. Sometimes forwarded
-			 * by other subcomponents
-			 *
-			 * @event VirtualPersona#addanimatefunctions
-			 * @type {object}
-			 * @property functions - Array of functions
-			 */
-			this.emit('addanimatefunctions', event);
-		});
-		this.multiVP.on('error', (event) => {
-			this.emit('error', event);
-		});
+		if (config.multiVP) {
+			this.multiVP = new MultiVP(config.multiVP, this);
+			this.multiVP.on('add', (event) => {
+				/**
+				 * VirtualPersona add event that provides a mesh
+				 * to be added to the scene. Sometimes forwarded
+				 * by other subcomponents
+				 *
+				 * @event VirtualPersona#add
+				 * @type {object}
+				 * @property mesh - Mesh to add to the scene
+				 */
+				this.emit('add', event);
+			});
+			this.multiVP.on('remove', (event) => {
+				/**
+				 * VirtualPersona remove event that provides a mesh
+				 * to be removed to the scene. Sometimes forwarded
+				 * by other subcomponents
+				 *
+				 * @event VirtualPersona#remove
+				 * @type {object}
+				 * @property mesh - Mesh to be removed from the scene
+				 */
+				this.emit('remove', event);
+			});
+			this.multiVP.on('addanimatefunctions', (event) => {
+				/**
+				 * VirtualPersona addanimatefunctions event that provides a function
+				 * to be added to the animation loop. Sometimes forwarded
+				 * by other subcomponents
+				 *
+				 * @event VirtualPersona#addanimatefunctions
+				 * @type {object}
+				 * @property functions - Array of functions
+				 */
+				this.emit('addanimatefunctions', event);
+			});
+			this.multiVP.on('error', (event) => {
+				this.emit('error', event);
+			});
+		}
 	}
 
 	/**
@@ -92223,20 +92234,16 @@ class VirtualPersona extends eventemitter3 {
 
 		this.mesh = mesh;
 		this.headMesh = this.mesh.getObjectByName('VirtualPersonaHead');
-		/** TODO: FIX HEADMESH with Mirrors
-		 * this.headMesh.onBeforeRender = () => {
-		 * 	this.headMesh.layers.set(0);
-		 * };
-		 * this.headMesh.onAfterRender = () => {
-		 * 	this.headMesh.layers.set(1);
-		 * };
-		 */
+		this.headMesh.layers.set(3);
 		this.bodyMesh = this.mesh.getObjectByName('VirtualPersonaBody');
+		this.eyeBone = this.mesh.getObjectByName('VirtualPersonaEyeBone');
+		this.headBone = this.mesh.getObjectByName('VirtualPersonaHeadBone');
 		const boundingBox = new THREE.Box3().setFromObject(this.mesh);
 		this._meshHeight = boundingBox.max.y - boundingBox.min.y;
 
 		this.emit('add', {
-			mesh: this.mesh
+			mesh: this.mesh,
+			type: 'VirtualPersona'
 		});
 	}
 
@@ -92256,7 +92263,13 @@ class VirtualPersona extends eventemitter3 {
 	 */
 	signIn() {
 		return this.identity.signIn()
-			.then(() => this.loadMesh(this.identity.avatarPath, true))
+			.then((error) => {
+				if (error) {
+					return Promise.resolve(error);
+				} else {
+					return this.loadMesh(this.identity.avatarPath, true);
+				}
+			})
 			.catch((error) => Promise.reject(error));
 	}
 
@@ -92794,6 +92807,11 @@ if (THREE) {
 	window.THREE = t;
 }
 
+const defaultConfig$2 = {
+	render: true,
+	animate: true
+};
+
 /** Class for the scene that will */
 class Scene {
 
@@ -92835,7 +92853,7 @@ class Scene {
 	 * @param {THREE.Camera} config.camera - If you're rendering on your own, Simbol needs access to your camera
 	 */
 	constructor(config = {render: true, animate: true}) {
-		this.config = config;
+		this.config = Object.assign({}, defaultConfig$2, config);
 		if (config.render) {
 			const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 10000);
 			const renderer = new THREE.WebGLRenderer({
@@ -92857,15 +92875,16 @@ class Scene {
 		}
 
 		this.canvas = this.renderer.domElement;
-		this.vrEffect = new VREffect(this.renderer, console.warn);
 
 		const sceneLoader = new Loader(config.sceneToLoad);
 		this._sceneLoader = sceneLoader;
 
-		window.addEventListener('vrdisplayactivate', () => {
-			this.vrEffect.requestPresent();
-		}, false);
-
+		if (config.animate) {
+			this.vrEffect = new VREffect(this.renderer, console.warn);
+			window.addEventListener('vrdisplayactivate', () => {
+				this.vrEffect.requestPresent();
+			}, false);
+		}
 		this._render = this._render.bind(this);
 	}
 
@@ -92954,7 +92973,7 @@ class Scene {
 			for (const child of mesh.children) {
 				this._setupMeshes(child, collidable, shadow);
 			}
-		} else if (mesh.isObject3D) {
+		} else if (mesh.isMesh) {
 			mesh.geometry && mesh.geometry.computeFaceNormals();
 			if (shadow) {
 				mesh.castShadow = true;
@@ -92996,11 +93015,13 @@ class Scene {
 	 * @private
 	*/
 	_render(timestamp) {
-		for (const func of this.animateFunctions) {
-			func(timestamp);
-		}
+		if (this.scene && this.camera) {
+			for (const func of this.animateFunctions) {
+				func(timestamp);
+			}
 
-		this.vrEffect.render(this.scene, this.camera);
+			this.vrEffect.render(this.scene, this.camera);
+		}
 
 		this._animationFrameID = this.vrEffect.requestAnimationFrame(this._render);
 	}
@@ -93051,8 +93072,8 @@ var win;
 
 if (typeof window !== "undefined") {
     win = window;
-} else if (typeof global$1 !== "undefined") {
-    win = global$1;
+} else if (typeof global$1$1 !== "undefined") {
+    win = global$1$1;
 } else if (typeof self !== "undefined"){
     win = self;
 } else {
@@ -93095,100 +93116,50 @@ exports.right = function(str){
 var trim_2 = trim_1.left;
 var trim_3 = trim_1.right;
 
-var fnToStr = Function.prototype.toString;
+var forEach_1 = forEach$1;
 
-var constructorRegex = /^\s*class\b/;
-var isES6ClassFn = function isES6ClassFunction(value) {
-	try {
-		var fnStr = fnToStr.call(value);
-		return constructorRegex.test(fnStr);
-	} catch (e) {
-		return false; // not a function
-	}
-};
-
-var tryFunctionObject = function tryFunctionToStr(value) {
-	try {
-		if (isES6ClassFn(value)) { return false; }
-		fnToStr.call(value);
-		return true;
-	} catch (e) {
-		return false;
-	}
-};
-var toStr = Object.prototype.toString;
-var fnClass = '[object Function]';
-var genClass = '[object GeneratorFunction]';
-var hasToStringTag = typeof Symbol === 'function' && typeof Symbol.toStringTag === 'symbol';
-
-var isCallable = function isCallable(value) {
-	if (!value) { return false; }
-	if (typeof value !== 'function' && typeof value !== 'object') { return false; }
-	if (typeof value === 'function' && !value.prototype) { return true; }
-	if (hasToStringTag) { return tryFunctionObject(value); }
-	if (isES6ClassFn(value)) { return false; }
-	var strClass = toStr.call(value);
-	return strClass === fnClass || strClass === genClass;
-};
-
-var toStr$1 = Object.prototype.toString;
+var toString$2 = Object.prototype.toString;
 var hasOwnProperty$1 = Object.prototype.hasOwnProperty;
 
-var forEachArray = function forEachArray(array, iterator, receiver) {
+function forEach$1(list, iterator, context) {
+    if (!isFunction_1(iterator)) {
+        throw new TypeError('iterator must be a function')
+    }
+
+    if (arguments.length < 3) {
+        context = this;
+    }
+    
+    if (toString$2.call(list) === '[object Array]')
+        forEachArray(list, iterator, context);
+    else if (typeof list === 'string')
+        forEachString(list, iterator, context);
+    else
+        forEachObject(list, iterator, context);
+}
+
+function forEachArray(array, iterator, context) {
     for (var i = 0, len = array.length; i < len; i++) {
         if (hasOwnProperty$1.call(array, i)) {
-            if (receiver == null) {
-                iterator(array[i], i, array);
-            } else {
-                iterator.call(receiver, array[i], i, array);
-            }
+            iterator.call(context, array[i], i, array);
         }
     }
-};
+}
 
-var forEachString = function forEachString(string, iterator, receiver) {
+function forEachString(string, iterator, context) {
     for (var i = 0, len = string.length; i < len; i++) {
         // no such thing as a sparse string.
-        if (receiver == null) {
-            iterator(string.charAt(i), i, string);
-        } else {
-            iterator.call(receiver, string.charAt(i), i, string);
-        }
+        iterator.call(context, string.charAt(i), i, string);
     }
-};
+}
 
-var forEachObject = function forEachObject(object, iterator, receiver) {
+function forEachObject(object, iterator, context) {
     for (var k in object) {
         if (hasOwnProperty$1.call(object, k)) {
-            if (receiver == null) {
-                iterator(object[k], k, object);
-            } else {
-                iterator.call(receiver, object[k], k, object);
-            }
+            iterator.call(context, object[k], k, object);
         }
     }
-};
-
-var forEach$1 = function forEach(list, iterator, thisArg) {
-    if (!isCallable(iterator)) {
-        throw new TypeError('iterator must be a function');
-    }
-
-    var receiver;
-    if (arguments.length >= 3) {
-        receiver = thisArg;
-    }
-
-    if (toStr$1.call(list) === '[object Array]') {
-        forEachArray(list, iterator, receiver);
-    } else if (typeof list === 'string') {
-        forEachString(list, iterator, receiver);
-    } else {
-        forEachObject(list, iterator, receiver);
-    }
-};
-
-var forEach_1 = forEach$1;
+}
 
 var isArray$2 = function(arg) {
       return Object.prototype.toString.call(arg) === '[object Array]';
@@ -93239,10 +93210,6 @@ function extend() {
 
     return target
 }
-
-var xhr = createXHR;
-// Allow use of default import syntax in TypeScript
-var default_1 = createXHR;
 createXHR.XMLHttpRequest = window_1.XMLHttpRequest || noop$2;
 createXHR.XDomainRequest = "withCredentials" in (new createXHR.XMLHttpRequest()) ? createXHR.XMLHttpRequest : window_1.XDomainRequest;
 
@@ -93481,9 +93448,6 @@ function getXml(xhr) {
 }
 
 function noop$2() {}
-xhr.default = default_1;
-
-//Some versions of GlyphDesigner have a typo
 
 var xmlParseFromString = (function xmlparser() {
   //common browsers
@@ -93516,6 +93480,11 @@ var xmlParseFromString = (function xmlparser() {
 var Buffer$1 = buffer.Buffer; // for use with browserify
 
 var HEADER$1 = new Buffer([66, 77, 70, 3]);
+
+
+
+
+
 
 var xml2 = (function hasXML2() {
   return self.XMLHttpRequest && "withCredentials" in new XMLHttpRequest
@@ -93994,7 +93963,7 @@ function anArray(arr) {
 /*!
  * Determine if an object is a Buffer
  *
- * @author   Feross Aboukhadijeh <https://feross.org>
+ * @author   Feross Aboukhadijeh <feross@feross.org> <http://feross.org>
  * @license  MIT
  */
 
@@ -94543,8 +94512,6 @@ TextGeometry.prototype.computeBoundingBox = function () {
   utils.computeBox(positions, bbox);
 };
 
-/* eslint-disable */
-
 if (THREE) {
 	const t = Object.assign({}, THREE);
 	window.THREE = t;
@@ -94552,6 +94519,10 @@ if (THREE) {
 
 // Always polyfill as the polyfill itself checks if it's necessary
 new WebVRPolyfill();
+
+const defaultConfig$3 = {
+	locomotion: true
+};
 
 /**
  * Main class for Simbol
@@ -94582,9 +94553,12 @@ class Simbol extends eventemitter3 {
 	 * @param {object} config.scene - Configuration object for a Simbol scene
 	 * @param {object} config.virtualPersona - Configuration object for a VirtualPersona
 	 * @param {object} config.virtualPersona.multiVP - Configuration object for a WebRTC based social experience
+	 * @param {boolean} config.locomtion - Whether Simbol should provide locomotion utilities
 	 */
-	constructor(config) {
+	constructor(config = {locomotion: true}) {
 		super();
+
+		config = Object.assign({}, defaultConfig$3, config);
 
 		this.hand = config.hand;
 
@@ -94594,11 +94568,14 @@ class Simbol extends eventemitter3 {
 
 		this.controllers = new Controllers(this._scene.canvas, this.hand);
 
-		this.locomotion = new Locomotion();
 		this.interactions = new Interactions();
-
 		this.interactions.setUpEventListeners(this.controllers);
-		this.locomotion.setUpEventListeners(this.controllers, this.interactions);
+
+		if (config.locomotion) {
+			this.locomotion = new Locomotion();
+			this.locomotion.setUpEventListeners(this.controllers, this.interactions);
+		}
+
 		this.addListeners(this.virtualPersona, this.controllers, this.interactions);
 	}
 
@@ -94624,10 +94601,20 @@ class Simbol extends eventemitter3 {
 				this.vpMesh = this.virtualPersona.mesh;
 				this.controllers.init(this.vpMesh);
 
-				this.addToScene([
-					...this.interactions.getMeshes(),
-					...this.locomotion.getMeshes()
-				]);
+				// Adds the UI from other components into the scene
+				this.addToScene([...this.interactions.getMeshes()]);
+				if (this.locomotion) {
+					this.addToScene([...this.locomotion.getMeshes()]);
+				}
+
+				// Prepares multiVP for positional audio from other peers
+				if (this.virtualPersona.multiVP) {
+					this._scene.camera.add(this.virtualPersona.multiVP.audioListener);
+					document.body.addEventListener('click', () => {
+						this.virtualPersona.multiVP.audioListener.context.resume();
+					});
+				}
+
 				this.addAnimateFunctions([this.animate.bind(this)]);
 
 				return Promise.resolve();
@@ -94650,6 +94637,14 @@ class Simbol extends eventemitter3 {
 	addListeners(...components) {
 		for (const component of components) {
 			component.on('add', (event) => {
+				if (event.type === 'VirtualPersona') {
+					this.vpMesh = event.mesh;
+					this.controllers.updateControllers(this.vpMesh);
+					this.virtualPersona.eyeBone.add(this._scene.camera);
+					// Fix so it doesn't look backwards
+					this._scene.camera.rotation.y = Math.PI;
+				}
+
 				this.addToScene([event.mesh]);
 			});
 
@@ -94688,6 +94683,10 @@ class Simbol extends eventemitter3 {
 	 * @returns {undefined}
 	 */
 	addToScene(meshes, collidable = false, shadow = false) {
+		if (!(meshes instanceof Array)) {
+			meshes = [meshes];
+		}
+
 		this._scene.addToScene([...meshes], collidable, shadow);
 	}
 
@@ -94729,7 +94728,10 @@ class Simbol extends eventemitter3 {
 	 * @returns {undefined}
 	 */
 	startPresenting() {
-		this._scene.vrEffect.requestPresent();
+		this._scene.vrEffect.requestPresent()
+			.catch((error) => {
+				this.emit('error', error);
+			});
 		Utils.isPresenting = true;
 	}
 
@@ -94761,11 +94763,18 @@ class Simbol extends eventemitter3 {
 * @returns {undefined}
 */
 Simbol.prototype.animate = (function() {
+	let initialised = false;
 	const unalteredCamera = new THREE.Object3D();
-	const previousCameraPosition = new THREE.Vector3();
+	const previousPosition = new THREE.Vector3();
 	const previousControllerQuaternion = new THREE.Quaternion();
 	previousControllerQuaternion.initialised = false;
 	const translationDirection = new THREE.Vector3();
+
+	const locomotionRotation = new THREE.Euler();
+	const cameraWorldToLocal = new THREE.Matrix4();
+	const cameraPosition = new THREE.Vector3();
+	const cameraQuaternion = new THREE.Quaternion();
+	const poseMatrix = new THREE.Matrix4();
 	let previousTime = 0;
 	let delta = 0;
 
@@ -94782,59 +94791,62 @@ Simbol.prototype.animate = (function() {
 			controller = this.controllers.mainHandController;
 		}
 
-		if (!previousControllerQuaternion.initialised) {
+		if (!initialised) {
 			previousControllerQuaternion.copy(controller.quaternion);
-			previousControllerQuaternion.initialised = true;
+			initialised = true;
 		}
+
+		// Resets position, specially due to running #add methods on it
+		this.vpMesh.position.copy(previousPosition);
 
 		// Handle position
-		camera.position.copy(previousCameraPosition);
+		if (this.locomotion) {
+			// Translation
+			if (this.locomotion.translatingZ || this.locomotion.translatingX) {
+				translationDirection.set(Math.sign(this.locomotion.translatingX || 0), 0, Math.sign(this.locomotion.translatingZ || 0));
+				translationDirection.applyQuaternion(camera.quaternion);
+				const collision = Physics.checkMeshCollision(this.vpMesh, this._scene.collidableMeshes, this.virtualPersona.climbableHeight, translationDirection);
+				if (!collision) {
+					if (this.locomotion.translatingZ) {
+						this.vpMesh.translateZ(this.locomotion.translatingZ * delta);
+					}
 
-		// Translation
-		if (this.locomotion.translatingZ || this.locomotion.translatingX) {
-			translationDirection.set(Math.sign(this.locomotion.translatingX || 0), 0, Math.sign(this.locomotion.translatingZ || 0));
-			translationDirection.applyQuaternion(camera.quaternion);
-			const collision = Physics.checkMeshCollision(this.vpMesh, this._scene.collidableMeshes, this.virtualPersona.climbableHeight, translationDirection);
-			if (!collision) {
-				if (this.locomotion.translatingZ) {
-					camera.translateZ(this.locomotion.translatingZ * delta);
+					if (this.locomotion.translatingX) {
+						this.vpMesh.translateX(this.locomotion.translatingX * delta);
+					}
 				}
+			}
 
-				if (this.locomotion.translatingX) {
-					camera.translateX(this.locomotion.translatingX * delta);
+			// Teleportation
+			if (this.locomotion.teleportation.isRayCurveActive) {
+				this.locomotion.teleportation.updateRayCurve(controller, this._scene.scene);
+			}
+
+			if (this.locomotion.teleportation.isTeleportActive) {
+				this.vpMesh.position.setX(this.locomotion.teleportation.hitPoint.x);
+				this.vpMesh.position.setY(this.locomotion.teleportation.hitPoint.y);
+				this.vpMesh.position.setZ(this.locomotion.teleportation.hitPoint.z);
+				this.locomotion.teleportation.resetTeleport();
+			}
+
+			if (this.locomotion.teleportation.hitPoint) {
+				// Compare both quaternions, and if the difference is big enough, activateTeleport
+				const areQuaternionsEqual = Utils.areQuaternionsEqual(previousControllerQuaternion, controller.quaternion);
+				if (!areQuaternionsEqual) {
+					// Debounced function
+					this.locomotion.teleportation.activateTeleport();
 				}
 			}
 		}
 
-		// Teleportation
-		if (this.locomotion.teleportation.isRayCurveActive) {
-			this.locomotion.teleportation.updateRayCurve(controller, this._scene.scene);
-		}
-
-		if (this.locomotion.teleportation.isTeleportActive) {
-			camera.position.setX(this.locomotion.teleportation.hitPoint.x);
-			camera.position.setY(this.locomotion.teleportation.hitPoint.y + this.virtualPersona.userHeight);
-			camera.position.setZ(this.locomotion.teleportation.hitPoint.z);
-			this.locomotion.teleportation.resetTeleport();
-		}
-
-		if (this.locomotion.teleportation.hitPoint) {
-			// Compare both quaternions, and if the difference is big enough, activateTeleport
-			const areQuaternionsEqual = Utils.areQuaternionsEqual(previousControllerQuaternion, controller.quaternion);
-			if (!areQuaternionsEqual) {
-				// Debounced function
-				this.locomotion.teleportation.activateTeleport();
-			}
-		}
-
-		// Camera height
-		if (!camera.position.equals(previousCameraPosition)) {
+		// VP height
+		if (!this.vpMesh.position.equals(previousPosition)) {
 			this.virtualPersona.setFloorHeight(this._scene);
 		}
 
-		camera.position.setY(this.virtualPersona.floorHeight + this.virtualPersona.userHeight);
+		this.vpMesh.position.setY(this.virtualPersona.floorHeight);
 
-		previousCameraPosition.copy(camera.position);
+		previousPosition.copy(this.vpMesh.position);
 		if (controller.quaternion) {
 			previousControllerQuaternion.copy(controller.quaternion);
 		}
@@ -94845,27 +94857,35 @@ Simbol.prototype.animate = (function() {
 		if (Utils.isPresenting) {
 			this.virtualPersona.vrControls.update();
 
-			camera.rotation.order = 'YXZ';
-			camera.position.add(this.virtualPersona.fakeCamera.position);
-			camera.quaternion.copy(this.virtualPersona.fakeCamera.quaternion);
-
-			this.vpMesh.rotation.y = camera.rotation.y + Math.PI;
-		} else {
-			this.vpMesh.rotation.y = this.locomotion.orientation.euler.y + Math.PI;
-			camera.rotation.order = 'XYZ';
-			camera.rotation.copy(this.locomotion.orientation.euler);
+			this.vpMesh.position.add(this.virtualPersona.fakeCamera.position);
+			locomotionRotation.copy(this.virtualPersona.fakeCamera.rotation);
+		} else if (this.locomotion) {
+			locomotionRotation.copy(this.locomotion.orientation.euler);
 		}
+		this.vpMesh.rotation.y = locomotionRotation.y;
 
-		// Adjust the mesh's position
-		this.vpMesh.position.copy(camera.position);
-		const meshYPosition = camera.position.y - this.virtualPersona._meshHeight;
-		this.vpMesh.position.setY(meshYPosition);
+		// Handle camera rotation
+		if (this.locomotion) {
+			// Calculatw World-To-Local for the camera's rotation
+			cameraWorldToLocal.getInverse(camera.parent.matrixWorld);
+			poseMatrix.makeRotationFromEuler(locomotionRotation);
+			poseMatrix.multiplyMatrices(cameraWorldToLocal, poseMatrix);
+			poseMatrix.decompose({}, cameraQuaternion, {});
+			locomotionRotation.setFromQuaternion(cameraQuaternion);
+			camera.rotation.x = -locomotionRotation.x; // Negative sign fixes vertical rotation, so up is up and down is down on pc
+			camera.rotation.z = locomotionRotation.z;
+		}
+		camera.matrixWorld.decompose(cameraPosition, cameraQuaternion, {});
 
 		// MultiVP
-		this.virtualPersona.multiVP.sendData(this.vpMesh);
+		if (this.virtualPersona.multiVP) {
+			this.virtualPersona.multiVP.sendData(this.vpMesh);
+		}
 
 		// Interactions
-		this.interactions.update(controller.position, controller.quaternion);
+		const position = controller === camera ? cameraPosition : controller.position;
+		const quaternion = controller === camera ? cameraQuaternion : controller.quaternion;
+		this.interactions.update(position, quaternion);
 
 		// Controllers
 		const controllerIds = Object.keys(this.controllers.currentControllers);
@@ -94902,6 +94922,8 @@ AFRAME.registerComponent('simbol', {
 	init: function() {
 		// Simbol handles controls itself
 		window.addEventListener('load', () => {
+			console.log(document.querySelector('[camera]'));
+			console.log(document.querySelector('.a-grab-cursor'));
 			document.querySelector('[camera]').removeAttribute('wasd-controls');
 			document.querySelector('[camera]').removeAttribute('look-controls');
 			document.querySelector('.a-grab-cursor').classList.remove('a-grab-cursor');
@@ -94918,7 +94940,7 @@ AFRAME.registerComponent('simbol', {
 				sceneToLoad: this.el.sceneEl.object3D,
 				// It needs to be the parent to be positioned properly
 				// As Simbol is looking for direct children of the scene
-				// * World-Local position issue
+				// & World-Local position issue
 				camera: this.el.sceneEl.camera.parent,
 				renderer: this.el.sceneEl.renderer
 			};
