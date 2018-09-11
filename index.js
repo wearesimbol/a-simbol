@@ -36,7 +36,6 @@ AFRAME.registerComponent('simbol', {
 				renderer: this.el.sceneEl.renderer
 			};
 
-			window.lol = this;
 			this.config = config;
 			this.simbol = new Simbol(config);
 			this.simbol.init();
