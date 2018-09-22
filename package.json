@@ -1,6 +1,6 @@
 {
   "name": "a-simbol",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A-Frame component for Simbol",
   "main": "build/a-simbol.js",
   "scripts": {
