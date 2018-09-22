@@ -7555,8 +7555,6 @@ class PoseController extends eventemitter3 {
 PoseController.prototype.update = (function() {
 
 	const cameraPosition = new THREE.Vector3();
-	const cameraQuaternion = new THREE.Quaternion();
-	const cameraRotation = new THREE.Euler();
 	const worldToLocal = new THREE.Matrix4();
 	const poseMatrix = new THREE.Matrix4();
 
@@ -7615,15 +7613,12 @@ PoseController.prototype.update = (function() {
 			this.position.fromArray(gamepad.pose.position);
 		}
 
-		camera.matrixWorld.decompose(cameraPosition, cameraQuaternion, {});
-		cameraRotation.setFromQuaternion(cameraQuaternion, 'YXZ');
-
 		if (this.handMesh) {
 			worldToLocal.getInverse(this.handMesh.parent.matrixWorld);
 
 			if (!gamepad.pose.position) {
 				// Arm model from https://github.com/ryanbetts/aframe-daydream-controller-component
-				this.position.copy(cameraPosition);
+				this.position.copy(camera.position);
 
 				if (!this.offset) {
 					this.offset = new THREE.Vector3();
@@ -7636,7 +7631,7 @@ PoseController.prototype.update = (function() {
 				// Scale offset by user height
 				this.offset.multiplyScalar(userHeight);
 				// Apply camera Y rotation (not X or Z, so you can look down at your hand)
-				this.offset.applyAxisAngle(VERTICAL_VECTOR, cameraRotation.y);
+				this.offset.applyAxisAngle(VERTICAL_VECTOR, camera.rotation.y);
 				// Apply rotated offset to camera position
 				this.position.add(this.offset);
 
@@ -7650,6 +7645,10 @@ PoseController.prototype.update = (function() {
 				this.offset.applyEuler(this.euler);
 				// Apply rotated offset to camera position
 				this.position.add(this.offset);
+			} else {
+				cameraPosition.copy(camera.position);
+				cameraPosition.add(this.position);
+				this.position.copy(cameraPosition);
 			}
 
 			poseMatrix.makeRotationFromQuaternion(this.quaternion);
@@ -7659,11 +7658,6 @@ PoseController.prototype.update = (function() {
 			// Makes sure the hand is pointing in the same direction as how one holds the controller
 			this.handMesh.rotateX(-(Math.PI / 2));
 			this.handMesh.rotateY(-(Math.PI / 2));
-			this.handMesh.updateMatrixWorld();
-
-			if (gamepad.pose.position) {
-				this.handMesh.position.add(cameraPosition);
-			}
 		}
 	};
 }());
@@ -84714,15 +84708,14 @@ class Identity extends eventemitter3 {
 			return this.uPortData;
 		}
 
-		const savedIdentity = localStorage.getItem('currentIdentity');
-
+		const savedIdentity = this.getIdentityFromSource();
 		if (!savedIdentity) {
 			return;
 		}
 
 		try {
 			const identity = JSON.parse(savedIdentity);
-			this.setUPortData(identity);
+			this.setUPortData(identity, true);
 			return identity;
 		} catch (error) {
 			/**
@@ -84734,6 +84727,23 @@ class Identity extends eventemitter3 {
 			 */
 			this.emit('error', error);
 		}
+	}
+
+	/**
+	 * Retrieves the identity information from the correct source
+	 * It first tries from the URL paramater 'simbolIdentity', if it's a site-to-site navigation
+	 * Then tries from LocalStorage if the site has been visited previously
+	 *
+	 * @returns {object} identity
+	 */
+	getIdentityFromSource() {
+		const urlParams = new URLSearchParams(location.search);
+		const simbolIdentityParams = urlParams.get('simbolIdentity');
+		if (simbolIdentityParams !== null) {
+			return decodeURIComponent(simbolIdentityParams);
+		}
+
+		return localStorage.getItem('currentIdentity');
 	}
 
 	/**
@@ -91518,13 +91528,17 @@ function makeError (message, code) {
 function noop$1 () {}
 
 const defaultConfig = {
-	socketURL: 'ws://127.0.0.1',
-	socketPort: 8091,
+	socketURL: 'wss://ws.simbol.io',
+	socketPort: 443,
 	channelName: 'default',
 	iceServers: [
 		{urls: 'stun:global.stun.twilio.com:3478?transport=udp'},
 		{urls:'stun:stun.l.google.com:19302'},
-		{urls:'stun:stun1.l.google.com:19302'}
+		{
+			urls: 'turn:albertoelias.me:3478?transport=udp',
+			username: 'alberto',
+			credential: 'pzqmtestinglol'
+		}
 	],
 	peer: {
 		trickle: true,
@@ -92078,7 +92092,7 @@ class VirtualPersona extends eventemitter3 {
 			this.emit('error', event);
 		});
 
-		if (config.multiVP) {
+		if (config.multiVP !== false) {
 			this.multiVP = new MultiVP(config.multiVP, this);
 			this.multiVP.on('add', (event) => {
 				/**
@@ -92855,10 +92869,10 @@ class Scene {
 	 */
 	constructor(config = {render: true, animate: true}) {
 		this.config = Object.assign({}, defaultConfig$2, config);
-		if (config.render) {
+		if (this.config.render) {
 			const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.01, 10000);
 			const renderer = new THREE.WebGLRenderer({
-				canvas: config.canvas,
+				canvas: this.config.canvas,
 				antialias: true
 			});
 			// Last parameter adds pixel units to canvas element
@@ -92871,16 +92885,16 @@ class Scene {
 
 			window.addEventListener('resize', this.onResize.bind(this), false);
 		} else {
-			this.camera = config.camera;
-			this.renderer = config.renderer;
+			this.camera = this.config.camera;
+			this.renderer = this.config.renderer;
 		}
 
 		this.canvas = this.renderer.domElement;
 
-		const sceneLoader = new Loader(config.sceneToLoad);
+		const sceneLoader = new Loader(this.config.sceneToLoad);
 		this._sceneLoader = sceneLoader;
 
-		if (config.animate) {
+		if (this.config.animate) {
 			this.vrEffect = new VREffect(this.renderer, console.warn);
 			window.addEventListener('vrdisplayactivate', () => {
 				this.vrEffect.requestPresent();
@@ -94797,11 +94811,11 @@ Simbol.prototype.animate = (function() {
 			initialised = true;
 		}
 
-		// Resets position, specially due to running #add methods on it
-		this.vpMesh.position.copy(previousPosition);
-
 		// Handle position
 		if (this.locomotion) {
+			// Resets position, specially due to running #add methods on it
+			this.vpMesh.position.copy(previousPosition);
+
 			// Translation
 			if (this.locomotion.translatingZ || this.locomotion.translatingX) {
 				translationDirection.set(Math.sign(this.locomotion.translatingX || 0), 0, Math.sign(this.locomotion.translatingZ || 0));
@@ -94852,7 +94866,15 @@ Simbol.prototype.animate = (function() {
 			previousControllerQuaternion.copy(controller.quaternion);
 		}
 
-		unalteredCamera.copy(camera);
+		/*
+		 * Sets a camera to position controllers properly
+		 * It needs to not include the added position by the 
+		 * fakeCamera and position the y axis with the camera
+		 */
+		this.vpMesh.updateMatrixWorld(true);
+		unalteredCamera.copy(this.vpMesh, false);
+		camera.matrixWorld.decompose(cameraPosition, cameraQuaternion, {});
+		unalteredCamera.position.y = cameraPosition.y;
 
 		// Immersive mode + Rotation
 		if (Utils.isPresenting) {
@@ -94863,11 +94885,11 @@ Simbol.prototype.animate = (function() {
 		} else if (this.locomotion) {
 			locomotionRotation.copy(this.locomotion.orientation.euler);
 		}
-		this.vpMesh.rotation.y = locomotionRotation.y;
 
 		// Handle camera rotation
 		if (this.locomotion) {
-			// Calculatw World-To-Local for the camera's rotation
+			this.vpMesh.rotation.y = locomotionRotation.y;
+			// Calculate World-To-Local for the camera's rotation
 			cameraWorldToLocal.getInverse(camera.parent.matrixWorld);
 			poseMatrix.makeRotationFromEuler(locomotionRotation);
 			poseMatrix.multiplyMatrices(cameraWorldToLocal, poseMatrix);
@@ -94893,6 +94915,7 @@ Simbol.prototype.animate = (function() {
 		for (const controllerId of controllerIds) {
 			// Gets the controller from the list with this id and updates it
 			const controller = this.controllers.currentControllers[controllerId];
+			this.vpMesh.updateMatrixWorld(true);
 			controller.update && controller.update(
 				delta,
 				// Uses a camera that hasn't been applied the HMD data
@@ -94941,7 +94964,6 @@ AFRAME.registerComponent('simbol', {
 				renderer: this.el.sceneEl.renderer
 			};
 
-			window.lol = this;
 			this.config = config;
 			this.simbol = new Simbol(config);
 			this.simbol.init();
