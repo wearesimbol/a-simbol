@@ -18,6 +18,25 @@ And then add the tag to your HTML:
 
 Check it out on glitch: https://glitch.com/edit/#!/a-simbol-example
 
+## Adding interactions
+
+It also provides the component `simbol-selectable`, add it to any entity and it will emit the following events with Simbol's interaction system:
+
+* `Simbol.selected`
+* `Simbol.unselected`
+* `Simbol.hover`
+* `Simbol.unhover`
+
+```html
+<a-box simbol-selectable></a-box>
+```
+
+```js
+document.querySelector('a-box').addEventListener('Simbol.selected', () => {
+	console.log('Box clicked');
+});
+```
+
 ## Contributing
 
 Check out the [Contribution guide](https://github.com/wearesimbol/simbol/blob/master/CONTRIBUTING.md)! If you have any questions, join our [community](http://spectrum.chat/simbol)

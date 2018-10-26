@@ -1,5 +1,5 @@
 /* global AFRAME */
-import Simbol from '../simbol/build/simbol.nothree.js';
+import Simbol from './node_modules/simbol/build/simbol.nothree.js';
 
 // Changes single quotes to double quotes from the HTML
 function parseJSON(string) {
@@ -12,6 +12,7 @@ AFRAME.registerComponent('simbol', {
 	schema: {
 		hand: {default: 'left'},
 		virtualpersona: {default: '{}'},
+		interactions: {default: true},
 		multivp: {default: '{}'}
 	},
 
@@ -25,6 +26,7 @@ AFRAME.registerComponent('simbol', {
 			const config = {
 				hand: this.data.hand,
 				virtualPersona: parseJSON(this.data.virtualpersona),
+				interactions: this.data.interactions,
 				multiVP: parseJSON(this.data.multivp)
 			};
 
@@ -39,6 +41,8 @@ AFRAME.registerComponent('simbol', {
 			this.config = config;
 			this.simbol = new Simbol(config);
 			this.simbol.init();
+
+			this.el.sceneEl.emit('Simbol.loaded');
 		});
 	},
 
@@ -59,6 +63,68 @@ AFRAME.registerPrimitive('a-simbol', {
 	mappings: {
 		hand: 'simbol.hand',
 		virtualpersona: 'simbol.virtualpersona',
+		interactions: 'simbol.interactions',
 		multivp: 'simbol.multivp'
+	}
+});
+
+AFRAME.registerComponent('simbol-selectable', {
+	init: function() {
+		const simbolEl = document.querySelector('a-simbol');
+		const simbolComponent = simbolEl.components.simbol;
+		if (simbolComponent && simbolComponent.simbol) {
+			this.addInteraction(simbolEl);
+		} else {
+			this.el.sceneEl.addEventListener('Simbol.loaded', () => {
+				this.addInteraction(simbolEl);
+			});
+		}
+		this._selectedHandler.bind(this);
+		this._hoverHandler.bind(this);
+		this._unselectedHandler.bind(this);
+		this._unhoverHandler.bind(this);
+		this.remove.bind(this);
+	},
+
+	addInteraction: function(simbolEl) {
+		this.simbol = simbolEl.components.simbol.simbol;
+		if (!this.simbol.interactions) {
+			return;
+		}
+		this.simbol.addInteraction({
+			interaction: 'selection',
+			mesh: this.el.object3D
+		});
+
+		this.el.object3D.on('selected', this._selectedHandler);
+		this.el.object3D.on('hover', this._hoverHandler);
+		this.el.object3D.on('unselected', this._unselectedHandler);
+		this.el.object3D.on('unhover', this._unhoverHandler);
+	},
+
+	_selectedHandler: function() {
+		this.el.emit('Simbol.selected');
+	},
+
+	_hoverHandler: function() {
+		this.el.emit('Simbol.hover');
+	},
+
+	_unselectedHandler: function() {
+		this.el.emit('Simbol.unselected');
+	},
+
+	_unhoverHandler: function() {
+		this.el.emit('Simbol.unhover');
+	},
+
+	remove: function() {
+		if (this.simbol && this.simbol.interactions) {
+			this.simbol.interactions.selection.remove(this.el.object3D);
+			this.el.object3D.off('selected', this._selectedHandler);
+			this.el.object3D.off('hover', this._hoverHandler);
+			this.el.object3D.off('unselected', this._unselectedHandler);
+			this.el.object3D.off('unhover', this._unhoverHandler);
+		}
 	}
 });
