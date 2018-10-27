@@ -73,10 +73,10 @@ AFRAME.registerComponent('simbol-selectable', {
 		const simbolEl = document.querySelector('a-simbol');
 		const simbolComponent = simbolEl.components.simbol;
 		if (simbolComponent && simbolComponent.simbol) {
-			this.addInteraction(simbolEl);
+			this.addInteraction();
 		} else {
 			this.el.sceneEl.addEventListener('Simbol.loaded', () => {
-				this.addInteraction(simbolEl);
+				this.addInteraction();
 			});
 		}
 		this._selectedHandler.bind(this);
@@ -86,7 +86,11 @@ AFRAME.registerComponent('simbol-selectable', {
 		this.remove.bind(this);
 	},
 
-	addInteraction: function(simbolEl) {
+	addInteraction: function() {
+		const simbolEl = document.querySelector('a-simbol');
+		if (!simbolEl) {
+			return;
+		}
 		this.simbol = simbolEl.components.simbol.simbol;
 		if (!this.simbol.interactions) {
 			return;
