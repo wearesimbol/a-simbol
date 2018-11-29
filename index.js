@@ -13,7 +13,7 @@ AFRAME.registerComponent('simbol', {
 		hand: {default: 'left'},
 		virtualpersona: {default: '{}'},
 		interactions: {default: true},
-		multivp: {default: '{}'}
+		multiuser: {default: '{}'}
 	},
 
 	init: function() {
@@ -27,7 +27,7 @@ AFRAME.registerComponent('simbol', {
 				hand: this.data.hand,
 				virtualPersona: parseJSON(this.data.virtualpersona),
 				interactions: this.data.interactions,
-				multiVP: parseJSON(this.data.multivp)
+				multiUser: parseJSON(this.data.multiuser)
 			};
 
 			config.scene = {
@@ -40,9 +40,9 @@ AFRAME.registerComponent('simbol', {
 
 			this.config = config;
 			this.simbol = new Simbol(config);
-			this.simbol.init();
-
-			this.el.sceneEl.emit('Simbol.loaded');
+			this.simbol.init().then(() => {
+				this.el.sceneEl.emit('Simbol.loaded');
+			});
 		});
 	},
 
@@ -64,7 +64,7 @@ AFRAME.registerPrimitive('a-simbol', {
 		hand: 'simbol.hand',
 		virtualpersona: 'simbol.virtualpersona',
 		interactions: 'simbol.interactions',
-		multivp: 'simbol.multivp'
+		multiuser: 'simbol.multiuser'
 	}
 });
 
@@ -129,6 +129,54 @@ AFRAME.registerComponent('simbol-selectable', {
 			this.el.object3D.off('hover', this._hoverHandler);
 			this.el.object3D.off('unselected', this._unselectedHandler);
 			this.el.object3D.off('unhover', this._unhoverHandler);
+		}
+	}
+});
+
+AFRAME.registerComponent('simbol-networked', {
+
+	schema: {
+		animatedvalues: {default: []}
+	},
+
+	init: function() {
+		if (!this.el.id) {
+			console.error(`Component ${this.el} needs an ID for 'simbol-networked'`);
+			return;
+		}
+		this.el.object3D.name = this.el.id;
+		const simbolEl = document.querySelector('a-simbol');
+		const simbolComponent = simbolEl.components.simbol;
+		if (simbolComponent && simbolComponent.simbol) {
+			this.addNetworked();
+		} else {
+			this.el.sceneEl.addEventListener('Simbol.loaded', () => {
+				this.addNetworked();
+			});
+		}
+	},
+
+	addNetworked: function() {
+		const simbolEl = document.querySelector('a-simbol');
+		if (!simbolEl) {
+			return;
+		}
+		this.simbol = simbolEl.components.simbol.simbol;
+		if (!this.simbol.multiUser) {
+			return;
+		}
+		this.simbol.multiUser.addObject({
+			type: 'name',
+			value: this.el.object3D.name,
+			id: this.el.id,
+			owner: 'self',
+			animatedValues: this.data.animatedvalues
+		});
+	},
+
+	remove: function() {
+		if (this.simbol && this.simbol.multiUser) {
+			this.simbol.multiUser.removeObject(this.el.id);
 		}
 	}
 });
