@@ -1,5 +1,6 @@
 /* global AFRAME */
 import Simbol from './node_modules/simbol/build/simbol.nothree.js';
+// import Simbol from '../simbol/build/simbol.nothree.js';
 
 // Changes single quotes to double quotes from the HTML
 function parseJSON(string) {

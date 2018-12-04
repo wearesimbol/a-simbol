@@ -16430,15 +16430,15 @@ function getDeepValue(object, value) {
  */
 function setDeepValue(object, key, value) {
 	const pathArray = key.split('.');
-	if (object[pathArray[0]]) {
-		if (pathArray.length === 1) {
-			object[pathArray[0]] = value;
-			return object[pathArray[0]];
-		} else {
-			return setDeepValue(object[pathArray[0]], pathArray.slice(1).join('.'), value);
-		}
+	if (pathArray.length === 1) {
+		object[pathArray[0]] = value;
+		return object[pathArray[0]];
 	} else {
-		return undefined;
+		if (object[pathArray[0]]) {
+			return setDeepValue(object[pathArray[0]], pathArray.slice(1).join('.'), value);
+		} else {
+			return undefined;
+		}
 	}
 }
 
@@ -17262,11 +17262,11 @@ class MultiUser extends eventemitter3 {
 			payload.animatedValues[key] = getDeepValue(object.object3D, key);
 		}
 
-		const positionBuffer = new ArrayBuffer(16);
-		positionBuffer[0] = object3D.position.x;
-		positionBuffer[1] = object3D.position.y;
-		positionBuffer[2] = object3D.position.z;
-		positionBuffer[3] = object3D.rotation.y;
+		// const positionBuffer = new ArrayBuffer(16);
+		// positionBuffer[0] = object3D.position.x;
+		// positionBuffer[1] = object3D.position.y;
+		// positionBuffer[2] = object3D.position.z;
+		// positionBuffer[3] = object3D.rotation.y;
 
 		this.broadcast(JSON.stringify(payload));
 	}
@@ -81139,6 +81139,7 @@ class VirtualPersona extends eventemitter3 {
 		});
 		this.vrControls.userHeight = 0;
 		this.fakeCamera = fakeCamera;
+		this.position = new THREE.Vector3();
 
 		this._floorRayCaster = new THREE.Raycaster();
 		// TODO: Avoid the user from floating. Probably not necessary?
@@ -83586,8 +83587,8 @@ class Simbol extends eventemitter3 {
 	 * @param {string} config.hand - The user's preferred hand
 	 * @param {object} config.scene - Configuration object for a Simbol scene
 	 * @param {object} config.virtualPersona - Configuration object for a VirtualPersona
-	 * @param {object} config.virtualPersona.multiUser - Configuration object for a WebRTC based social experience. Can be set to false if you configure your own multiuser experience
-	 * @param {boolean} config.locomtion - Whether Simbol should provide locomotion utilities
+	 * @param {object} config.multiUser - Configuration object for a WebRTC based social experience. Can be set to false if you configure your own multiuser experience
+	 * @param {boolean} config.locomotion - Whether Simbol should provide locomotion utilities
 	 */
 	constructor(config = {locomotion: true}) {
 		super();
@@ -83853,7 +83854,6 @@ class Simbol extends eventemitter3 {
 Simbol.prototype.animate = (function() {
 	let initialised = false;
 	const unalteredCamera = new THREE.Object3D();
-	const previousPosition = new THREE.Vector3();
 	const previousControllerQuaternion = new THREE.Quaternion();
 	previousControllerQuaternion.initialised = false;
 	const translationDirection = new THREE.Vector3();
@@ -83889,7 +83889,7 @@ Simbol.prototype.animate = (function() {
 		// Handle position
 		if (this.locomotion) {
 			// Resets position, specially due to running #add methods on it
-			this.vpMesh.position.copy(previousPosition);
+			this.vpMesh.position.copy(this.virtualPersona.position);
 
 			// Translation
 			if (this.locomotion.translatingZ || this.locomotion.translatingX) {
@@ -83930,13 +83930,13 @@ Simbol.prototype.animate = (function() {
 		}
 
 		// VP height
-		if (!this.vpMesh.position.equals(previousPosition)) {
+		if (!this.vpMesh.position.equals(this.virtualPersona.position)) {
 			this.virtualPersona.setFloorHeight(this._scene);
 		}
 
 		this.vpMesh.position.setY(this.virtualPersona.floorHeight);
 
-		previousPosition.copy(this.vpMesh.position);
+		this.virtualPersona.position.copy(this.vpMesh.position);
 		if (controller.quaternion) {
 			previousControllerQuaternion.copy(controller.quaternion);
 		}
@@ -83955,7 +83955,7 @@ Simbol.prototype.animate = (function() {
 		if (Utils.isPresenting) {
 			this.virtualPersona.vrControls.update();
 
-			this.vpMesh.position.add(this.virtualPersona.fakeCamera.position);
+			this.vpMesh.position.addVectors(this.virtualPersona.position, this.virtualPersona.fakeCamera.position);
 			locomotionRotation.copy(this.virtualPersona.fakeCamera.rotation);
 		} else if (this.locomotion) {
 			locomotionRotation.copy(this.locomotion.orientation.euler);
@@ -84000,6 +84000,7 @@ Simbol.prototype.animate = (function() {
 }());
 
 /* global AFRAME */
+// import Simbol from '../simbol/build/simbol.nothree.js';
 
 // Changes single quotes to double quotes from the HTML
 function parseJSON(string) {
