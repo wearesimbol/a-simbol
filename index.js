@@ -1,9 +1,11 @@
 /* global AFRAME */
 import Simbol from './node_modules/simbol/build/simbol.nothree.js';
-// import Simbol from '../simbol/build/simbol.nothree.js';
 
 // Changes single quotes to double quotes from the HTML
 function parseJSON(string) {
+	if (typeof string !== 'string') {
+		return string
+	}
 	string = string.replace(/'/g, '"');
 	return JSON.parse(string);
 }
@@ -13,7 +15,7 @@ AFRAME.registerComponent('simbol', {
 	schema: {
 		hand: {default: 'left'},
 		virtualpersona: {default: '{}'},
-		interactions: {default: true},
+		interactions: {default: '{}'},
 		multiuser: {default: '{}'}
 	},
 
@@ -27,7 +29,7 @@ AFRAME.registerComponent('simbol', {
 			const config = {
 				hand: this.data.hand,
 				virtualPersona: parseJSON(this.data.virtualpersona),
-				interactions: this.data.interactions,
+				interactions: parseJSON(this.data.interactions),
 				multiUser: parseJSON(this.data.multiuser)
 			};
 
